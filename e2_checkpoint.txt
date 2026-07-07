@@ -1,0 +1,170 @@
+{
+  "metadata": {
+    "kernelspec": {
+      "name": "node_nteract",
+      "language": "javascript",
+      "display_name": "Node.js (nteract)"
+    },
+    "kernel_info": {
+      "name": "node_nteract"
+    },
+    "language_info": {
+      "name": "javascript",
+      "version": "8.2.1",
+      "mimetype": "application/javascript",
+      "file_extension": ".js"
+    },
+    "title": "WepSIM ",
+    "nteract": {
+      "version": "nteract-on-jupyter@2.0.0"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "source": "## mode",
+      "metadata": {}
+    },
+    {
+      "cell_type": "code",
+      "source": "ep",
+      "outputs": [],
+      "execution_count": 1,
+      "metadata": {
+        "name": "mode",
+        "type": "string",
+        "collapsed": false,
+        "deletable": false,
+        "editable": false
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": "## firmware",
+      "metadata": {}
+    },
+    {
+      "cell_type": "code",
+      "source": "\n#\n# WepSIM (https://wepsim.github.io/wepsim/)\n#\n\n# Begin\n\nbegin\n{\n              # R0 <- 0\n              (EXCODE=0, T11, MR=1, SelC=0, LC=1),\n\n    fetch:\t\t(T2=1, C0=1), # MAR ← PC\n\t\t\t\t\t\t\t(Ta=1, R=1, BW=11, M1=1, C1=1), # MBR ← MP[MAR]\n\t\t\t\t\t\t\t(T1=1, C3=1, M2=1, C2=1), # PC ← PC+4, IR ← MBR\n              (A0, B=0, C=0)\n}\n\n\n#\n# RISC-V base to be used\n# Base RISC-V a usar\n#\n\nrdcycle reg1  {\n      co=000001,\n      nwords=1,\n      reg1=reg(25,21),\n      help='reg1 = load accumulated clock cycles',\n      {\n           (MH=1, T12=1, SELC=10101, LC=1, A0=1, B=1, C=0) # BR[reg1] ← CU\n      }\n}\n\nadd reg1 reg2 reg3 {\n      co=000010,\n      nwords=1,\n      reg1=reg(25,21),\n      reg2=reg(20,16),\n      reg3=reg(15,11),\n      help='r1 = r2 + r3',\n      {\n          (MC=1, MR=0, SELA=1011, SELB=10000, MA=0, MB=0, SELCOP=1010, T6=1, SELC=10101, LC=1, SELP=11, M7, C7, A0=1, B=1, C=0) # ALU ← BR[reg2] + BR[reg3]; BR[reg1] ← ALU\n      }\n}\n\nsub reg1 reg2 reg3 {\n      co=000011,\n      nwords=1,\n      reg1=reg(25,21),\n      reg2=reg(20,16),\n      reg3=reg(15,11),\n      help='r1 = r2 - r3',\n      {\n          (MC=1, MR=0, SELB=1011, SELA=10000, MA=0, MB=0, SELCOP=1011, T6=1, SELC=10101, LC=1, SELP=11, M7, C7, A0=1, B=1, C=0) # ALU ← BR[reg2] - BR[reg3]; BR[reg1] ← ALU\n      }\n}\n\nmul reg1 reg2 reg3 {\n      co=000100,\n      nwords=1,\n      reg1=reg(25,21),\n      reg2=reg(20,16),\n      reg3=reg(15,11),\n      help='reg1 = reg2 * reg3',\n      {\n          (MC=1, MR=0, SELA=1011, SELB=10000, MA=0, MB=0, SELCOP=1100, T6=1, SELC=10101, LC=1, SELP=11, M7, C7, A0=1, B=1, C=0) # ALU ← BR[reg2] * BR[reg3]; BR[reg1] ← ALU\n      }\n}\n\nlw reg1 val(reg2) {\n         co=111111,\n         nwords=1,\n         reg1 = reg(25,21),\n         val  = inm(15,0),\n         reg2 = reg(20,16),\n         {\n             (SE=1, OFFSET=0, SIZE=10000, T3=1, C5=1), # RT2 ← IR\n             (MR=0, SELA=10000, MA=0, MB=1, MC=1, SELCOP=1010, T6=1, C0=1), # MAR ← BR[reg2] + RT2\n             (TA=1, R=1, BW=11, M1=1, C1=1), # MBR ← MP[MAR]\n             (T1=1, LC=1, MR=0, SELC=10101, SE=1, A0=1, B=1, C=0) # BR[reg1] ← MBR\n         }\n}\n\nsw reg1 val(reg2) {\n      co=000110,\n      nwords=1,\n      reg1 = reg(25,21),\n      val  = inm(15,0),\n      reg2 = reg(20,16),\n      help='MEM[rs1+offset+3 .. rs1+offset] = rs2',\n      {\n          (SE=1, OFFSET=0, SIZE=10000, T3=1, C5=1), # RT2 ← IR\n          (MR=0, SELA=10000, MA=0, MB=1, MC=1, SELCOP=1010, T6=1, C0=1), # MAR ← BR[reg2] + RT2\n          (MR=0,  SELA=10101, T9=1, M1=0, C1=1), # MBR ← BR[reg1]\n          (BW=11, TA=1, TD=1, W=1,  A0=1, B=1, C=0) # MP[MAR] ← MBR\n      }\n}\n\nbeq rs1 rs2 offset {\n      co=000111,\n      nwords=1,\n      rs1=reg(25,21),\n      rs2=reg(20,16),\n      offset=address(15,0)rel,\n      help='if (rs1 == rs2) pc += offset',\n      {\n           (T8, C5),\n           (SELA=10101, SELB=10000, MC=1, SELCOP=1011, SELP=11, M7, C7),\n           (A0=0, B=1, C=110, MADDR=bck2ftch2),\n           (T5, M7=0, C7),\n           (T2, C4),\n           (SE=1, OFFSET=0, SIZE=10000, T3, C5),\n           (MA=1, MB=1, MC=1, SELCOP=1010, T6, C2, A0=1, B=1, C=0),\nbck2ftch2: (T5, M7=0, C7),\n           (A0=1, B=1, C=0)\n      }\n}\n\n\n#\n# Complex numbers\n#\n\nla r1 u32{\n  \tco=010001,\n    nwords=2,\n    r1=reg(25,21),\n    u32=inm(63,32),\n    help='R1=(U32)',\n    {\n    (T2, C0), # MAR ← PC\n    (TA, R, BW=11, M1=1, C1=1), # MBR ← MP[MAR]\n    (M2, C2, T1, LC=1, MR=0, SELC=10101, A0=1, B=1, C=0) # PC ← PC+4; BR[r1] ← MBR\n\t\t}\n}\nsc r1, r2, (r3){\n  \tco=010010,\n    nwords=1,\n    r1=reg(25,21),\n    r2=reg(20,16),\n    r3=reg(15,11),\n    help='MEM[r3+0] ← BR[r1]; MEM[r3+4] ← BR[r2]',\n    {\n    (MR=0,  SELA=01011, T9=1, C0=1), # MAR ← BR[r3]\n    (MR=0,  SELA=10101, T9=1, M1=0, C1=1), # MBR ← BR[r1]\n    (BW=11, TA=1, TD=1, W=1), # MP[MAR] ← MBR\n    (MR=0, SELA=01011, MA=0, MB=10, SELCOP=01010, MC=1, T6=1, C0=1) # MAR ← BR[r3+4]\n    (MR=0,  SELA=10000, T9=1, M1=0, C1=1), # MBR ← BR[r2]\n    (BW=11, TA=1, TD=1, W=1,  A0=1, B=1, C=0) # MP[MAR] ← MBR\n\t\t}\n}\nlc r1 r2 (r3){\n    co=010011,\n    nwords=1,\n    r1=reg(25,21),\n    r2=reg(20,16),\n    r3=reg(15,11),\n    help='BR[r1] ← MEM[r3+0]; BR[r2] ← MEM[r3+4]'\n    {\n      (MR=0,  SELA=01011, T9=1, C0=1), # MAR ← BR[r3]\n      (TA=1, R=1, BW=11, M1=1, C1=1), # MBR ← MP[MAR]\n      (T1=1, LC=1, MR=0, SELC=10101), # BR[r1] ← MBR\n      (MR=0, SELA=01011, MA=0, MB=10, SELCOP=01010, MC=1, T6=1, C0=1) # MAR ← BR[r3+4]\n      (TA=1, R=1, BW=11, M1=1, C1=1),# MBR ← MP[MAR]\n      (T1=1, LC=1, MR=0, SELC=10000, A0=1, B=1, C=0), # MAR ← BR[r2]\n    }\n}\n\naddc r1 r2 r3 r4{\n    co=010100,\n    nwords=1,\n    r1=reg(25,21),\n    r2=reg(20,16),\n    r3=reg(15,11),\n    r4=reg(10,6),\n    help='BR[RR1] ← BR[RR1] + BR[RR3]; BR[RR2] ← BR[RR2] + BR[RR4]'\n    {\n      (MR=0, SELA=10101, SELB=01011, MA=0, MB=00, MC=1, SELCOP=01010, T6=1, LC=1, SELC=10101, SelP=11, M7=1, C7=1), # ALU ← BR[r1] + BR[r3]; BR[r1] ← ALU\n      (MR=0, SELA=10000, SELB=00110, MA=0, MB=00, MC=1, SELCOP=01010, T6=1, LC=1, SELC=10000, SelP=11, M7=1, C7=1, A0=1, B=1, C=0), # ALU ← BR[r2]+ BR[r4]; BR[r2] ← ALU\n    }\n  \n}\nmulc  r1 r2 r3 r4{\n    co=010101,\n    nwords=1,\n    r1=reg(25,21),\n    r2=reg(20,16),\n    r3=reg(15,11),\n    r4=reg(10,6),\n    help='BR[RR1] ← BR[RR1] * BR[RR3] - BR[RR2] * BR[RR4]; BR[RR2] ← BR[RR1] * BR[RR4] + BR[RR2] * BR[RR3]'\n    {\n      (MR=0, SELA=10101, SELB=01011, SELCOP=1100, MA=0, MB=00, MC=1, T6=1, C4=1, SelP=11, M7=1, C7=1), # RT1 ← BR[r1] * BR[r3]\n      (MR=0, SELA=10000, SELB=00110, SELCOP=1100, MA=0, MB=00, MC=1, T6=1, C5=1, SelP=11, M7=1, C7=1), # RT2 ← BR[r2] * BR[r4]\n      (MA=1, MB=01, MC=1, SELCOP=01011, C6=1, SelP=11, M7=1, C7=1), # RT3 ← RT1 - RT2\n      (MR=0, SELA=10101, SELB=00110, SELCOP=1100, MA=0, MB=00, MC=1, T6=1, C4=1, SelP=11, M7=1, C7=1), # RT1 ← BR[r1] * BR[r4]\n      (MR=0, SELA=10000, SELB=01011, SELCOP=1100, MA=0, MB=00, MC=1, T6=1, C5=1, SelP=11, M7=1, C7=1), # RT2 ← BR[r2] * BR[r3]\n      (T7=1, LC=1, SELC=10101), # BR[r1] ← RT3\n      (MA=1, MB=01, MC=1, SELCOP=01010, T6=1, LC=1, SELC=10000, SelP=11, M7=1, C7=1, A0=1, B=1, C=0) # BR[r2] ← RT1 + RT2\n    }\n}\n\nbeqc  r1 r2 r3 r4 s6 {\n    co=110100,\n    nwords=1,\n    r1=reg(25,21),\n    r2=reg(20,16),\n    r3=reg(15,11),\n    r4=reg(10,6),\n    s6=address(5,0)rel,\n    help='Si (RR1 == RR3) Y (RR2 == RR4): PC ← PC + S6'\n    {\n      (T8, C5), # RT2 ← SR\n      (SELA=10101, SELB=01011, MC=1, SELCOP=1011, SELP=11, M7, C7), # RA =BR[r1]; RB = BR[r3]; RA - RB; SR ← FLAGS\n      (A0=0, B=1, C=110, MADDR=bck2ftch), # MUXA ← MADDR + 1 (si z = 0)\n      (SELA=10000, SELB=00110, MC=1, SELCOP=1011, SELP=11, M7, C7), # RA =BR[r2]; RB = BR[r4]; RA - RB; SR ← FLAGS\n      (A0=0, B=1, C=110, MADDR=bck2ftch), #  MUXA ← MADDR + 1 (si z = 0)\n      (T5, M7=0, C7), # RT2 ← SR\n      (T2, C4), # RT1 ← PC\n      (SE=1, OFFSET=0, SIZE=00110, T3, C5), # RT2 ← offset\n      (MA=1, MB=1, MC=1, SELCOP=1010, T6, C2, A0=1, B=1, C=0), # RT1 + RT2 (PC+offset)\n  bck2ftch: (T5, M7=0, C7), # SR ← RT2\n            (A0=1, B=1, C=0) \n    }\n}\n\ncall u20{\n    co=100001,\n    nwords=1,\n    u20=inm(19,0),\n    help='BR[ra] ← PC; PC ← U20'\n    {\n    (T2=1, LC=1, MR=1, SELC=00001), # BR[ra] ← PC\n    (SIZE=10100, T3=1, M2=0, C2=1, A0=1, B=1, C=0) # PC ← SELEC[U20]\n    }\n}\n\nret{\n    co=100010,\n    help='PC ← BR[ra]'\n    {\n    (MR=1, SELA=00001, T9=1, M2=0, C2=1, A0=1, B=1, C=0) # PC ← BR[ra]\n    }\n}\n\nhcf{\n    co=100011,\n    help='PC ← 0x00; SR ← 0x00'\n  \t{\n    (MR=1, SELA=0, T9=1, M2=0, C2=1, M7=0, C7=1, A0=1, B=1, C=0) # PC ← BR[zero]; SR ← BR[zero]\n    }\n}\n\n\n#\n# Registers\n#\n\nregisters\n{\n    0=(zero,  x0),\n    1=(ra,    x1),\n    2=(sp,    x2) (stack_pointer),\n    3=(gp,    x3),\n    4=(tp,    x4),\n    5=(t0,    x5),\n    6=(t1,    x6),\n    7=(t2,    x7),\n    8=(s0,    x8),\n    9=(s1,    x9),\n    10=(a0,  x10),\n    11=(a1,  x11),\n    12=(a2,  x12),\n    13=(a3,  x13),\n    14=(a4,  x14),\n    15=(a5,  x15),\n    16=(a6,  x16),\n    17=(a7,  x17),\n    18=(s2,  x18),\n    19=(s3,  x19),\n    20=(s4,  x20),\n    21=(s5,  x21),\n    22=(s6,  x22),\n    23=(s7,  x23),\n    24=(s8,  x24),\n    25=(s9,  x25),\n    26=(s10, x26),\n    27=(s11, x27),\n    28=(t3,  x28),\n    29=(t4,  x29),\n    30=(t5,  x30),\n    31=(t6,  x31)\n}",
+      "outputs": [],
+      "execution_count": 1,
+      "metadata": {
+        "name": "firmware",
+        "type": "string",
+        "collapsed": false,
+        "deletable": false,
+        "editable": false
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": "## assembly",
+      "metadata": {}
+    },
+    {
+      "cell_type": "code",
+      "source": ".data\n  a: .word 35, 15\n  b: .word 10, 20\n\n\n.text\n   no_ext: #Falta la pila\n   \t\t\t\t lw t0, 0(a0)\n           lw t1, 4(a0)\n           lw t2, 0(a1)\n           lw t3, 4(a1)\n           if1: beq t0 t2 if2 \n           add t4 t0 t2\n           add t5 t1 t3\n           ret\n           if2: beq t1 t3 multiplicacion1\n           add t4 t0 t2\n           add t5 t1 t3\n           ret\n           multiplicacion1: \n           mul t4 t0 t2\n           mul t5 t1 t3\n           sub t4 t4 t5\n           mul t5 t0 t3\n           mul t6 t1 t2\n           add t5 t5 t6\n           ret\n           \n   with_ext: #Falta pila\n           lc t0,t1,(a0)\n           lc t2,t3,(a1)\n           \n           if3: beqc t0 t1 t2 t3 multiplicacion2\n           \t\t\taddc t0 t1 t2 t3 \n                ret\n           multiplicacion2: mulc t0 t1 t2 t3\n           \n           ret \n\n   main: \n   \t\t\t\t ##### WITHOUT extension ##### \n           rdcycle s0\n           la a0, a\n           la a1, b\n           call no_ext\n           rdcycle s2\n           sub s2 s2 s0\n   \n   \t\t\t\t ##### WITH extension ##### \n\t\t\t\t\t rdcycle s0\n \t\t\t\t\t la a0, a\n        \t la a1, b\n \t\t\t\t\t call with_ext\n \t\t\t\t\t rdcycle s1\n  \t\t\t\t sub s1 s1 s0\n\n          \n           \n\n\n           # the end\n           hcf\n\n\n# A==B  (Ciclos de reloj sin extensión = 131); (Ciclos de reloj con extensión = 83) Mejora = 36.64%\n# A!=B  (Ciclos de reloj sin extensión = 93); (Ciclos de reloj con extensión = 74) Mejora = 20.43%\n\n\n\n\n\n\n\n\n\n",
+      "outputs": [],
+      "execution_count": 1,
+      "metadata": {
+        "name": "assembly",
+        "type": "string",
+        "collapsed": false,
+        "deletable": false,
+        "editable": false
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": "## state_current",
+      "metadata": {}
+    },
+    {
+      "cell_type": "code",
+      "source": "{\n  \"time\": 1701454771264,\n  \"title\": \"clock 198 @ &#181;address 0\",\n  \"title_short\": \"clock 198,<br>&#181;add 0\",\n  \"content\": \"register R1 = 0x80a0; register R2 = 0x100000; register R5 = 0x2d; register R6 = 0x23; register R7 = 0xa; register R8 = 0x6e; register R9 = 0x4a; register R10 = 0x1000; register R11 = 0x1008; register R18 = 0x5d; register R28 = 0x14; register R29 = 0x2d; register R30 = 0x23; memory 0x1000 = 0x23; memory 0x1004 = 0xf; memory 0x1008 = 0xa; memory 0x100c = 0x14; memory 0x8000 = 0xaa0000; memory 0x8004 = 0xca0004; memory 0x8008 = 0xeb0000; memory 0x800c = 0x38b0004; memory 0x8010 = 0x1ca7000c; memory 0x8014 = 0xba53800; memory 0x8018 = 0xbc6e000; memory 0x801c = 0x88000000; memory 0x8020 = 0x1cdc000c; memory 0x8024 = 0xba53800; memory 0x8028 = 0xbc6e000; memory 0x802c = 0x88000000; memory 0x8030 = 0x13a53800; memory 0x8034 = 0x13c6e000; memory 0x8038 = 0xfbdf000; memory 0x803c = 0x13c5e000; memory 0x8040 = 0x13e63800; memory 0x8044 = 0xbdef800; memory 0x8048 = 0x88000000; memory 0x804c = 0x4ca65000; memory 0x8050 = 0x4cfc5800; memory 0x8054 = 0xd0a63f08; memory 0x8058 = 0x50a63f00; memory 0x805c = 0x88000000; memory 0x8060 = 0x54a63f00; memory 0x8064 = 0x88000000; memory 0x8068 = 0x5000000; memory 0x806c = 0x45400000; memory 0x8070 = 0x1000; memory 0x8074 = 0x45600000; memory 0x8078 = 0x1008; memory 0x807c = 0x84008000; memory 0x8080 = 0x6400000; memory 0x8084 = 0xe524000; memory 0x8088 = 0x5000000; memory 0x808c = 0x45400000; memory 0x8090 = 0x1000; memory 0x8094 = 0x45600000; memory 0x8098 = 0x1008; memory 0x809c = 0x8400804c; memory 0x80a0 = 0x5200000; memory 0x80a4 = 0xd294000; memory 0x80a8 = 0x8c000000; \"\n}",
+      "outputs": [],
+      "execution_count": 1,
+      "metadata": {
+        "name": "state_current",
+        "type": "object",
+        "collapsed": false,
+        "deletable": false,
+        "editable": false
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": "## state_history",
+      "metadata": {}
+    },
+    {
+      "cell_type": "code",
+      "source": "[]",
+      "outputs": [],
+      "execution_count": 1,
+      "metadata": {
+        "name": "state_history",
+        "type": "object",
+        "collapsed": false,
+        "deletable": false,
+        "editable": false
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": "## record",
+      "metadata": {}
+    },
+    {
+      "cell_type": "code",
+      "source": "[]",
+      "outputs": [],
+      "execution_count": 1,
+      "metadata": {
+        "name": "record",
+        "type": "object",
+        "collapsed": false,
+        "deletable": false,
+        "editable": false
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": "## tag",
+      "metadata": {}
+    },
+    {
+      "cell_type": "code",
+      "source": "1/12/2023, 19:19:03",
+      "outputs": [],
+      "execution_count": 1,
+      "metadata": {
+        "name": "tag",
+        "type": "string",
+        "collapsed": false,
+        "deletable": false,
+        "editable": false
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": "## notify",
+      "metadata": {}
+    },
+    {
+      "cell_type": "code",
+      "source": "true",
+      "outputs": [],
+      "execution_count": 1,
+      "metadata": {
+        "name": "notify",
+        "type": "boolean",
+        "collapsed": false,
+        "deletable": false,
+        "editable": false
+      }
+    }
+  ]
+}
